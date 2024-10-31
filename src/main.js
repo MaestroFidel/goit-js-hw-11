@@ -1,72 +1,54 @@
 
+import { createGalleryCard, displayPhotos } from "./js/render-functions";
+import { fetchPhotos } from "./js/pixabay-api";
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
-import { fetchPhotos } from './js/pixabay-api';
+import SimpleLightbox from "simplelightbox";
+import "simplelightbox/dist/simple-lightbox.min.css";
 
-//DODANO
-import {
-    createImages,
-    clearImages,
-    showLoader,
-    hideLoader,
-    initializeLightbox,
-    refreshLightbox,
-  } from './js/render-functions';
-  
+const searchImg = document.querySelector('.js-search-form');
+const galleryImg = document.querySelector('.js-gallery');
+const waitLoader = document.querySelector('.js-loader');
 
-
-
-const formEl = document.querySelector('.js-search-form');
-
-const loader = document.querySelector('.js-gallery');
-
-const searchFormSubmit = event => {
+const onSearchFormSubmit = event => {
   event.preventDefault();
+  const searchValue = searchImg.elements.user_query.value.trim();
 
-  const searchValue = formEl.elements.searchtext.value.trim();
-
-  if (!searchValue) {
+  if (searchValue === "") {
     iziToast.error({
-      message: "Please enter a valid search query.",
+      title: "Error",
+      message: "Please fill out the form",
       position: 'topRight',
+      timeout: 3000
     });
     return;
   }
 
-  //DODANO
-  clearImages();
-  showLoader();
-  
+  waitLoader.classList.remove('loader-hidden');
+
   fetchPhotos(searchValue)
-  .then(data => {
-
-    //DODANO
-    hideLoader();
-
-
-    if (!data.hits || data.hits.length === 0) {
+    .then(data => {
+      if (data.hits.length === 0) {
+        iziToast.warning({
+          title: "No results",
+          message: "Sorry, there are no images your search query. Please try again.",
+          position: 'topLeft',
+        });
+        galleryImg.innerHTML = '';
+        searchImg.reset();
+        return;
+      }
+      displayPhotos(data.hits, galleryImg, new SimpleLightbox('.gallery-card a')); 
+    })
+    .catch(err => {
       iziToast.error({
-        message: "Sorry, no images were found.",
-        position: 'topRight',
+        title: "Error",
+        message: "Something wrong. Please, try later"
       });
-      loader.innerHTML = '';
-      formEl.reset();
-      return;
-    }
-    // const galleryCard = data.result.map(imgDetails => createGalleryCard(imgDetails)).join('');
-    const galleryCard = data.hits.map(imgDetails => createImages(imgDetails)).join(''); 
+    })
+    .finally(() => {
+      waitLoader.classList.add('loader-hidden'); 
+    });
+};
 
-    loader.innerHTML = galleryCard;
-
-    //DODANO
-    initializeLightbox(); // Ініціалізація SimpleLightbox після першого завантаження
-    refreshLightbox();
-    //QQQ
-  })
-  .catch(err => {
-    console.log(err);
-  });
-}
-
-formEl.addEventListener('submit', searchFormSubmit);
-
+searchImg.addEventListener('submit', onSearchFormSubmit);
